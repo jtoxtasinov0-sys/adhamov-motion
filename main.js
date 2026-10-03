@@ -325,11 +325,19 @@
     }, { once: true });
     const src = v.getAttribute('src');
     fetch(src, { method: 'HEAD' }).then(r => { if (!r.ok) missing(); }).catch(() => {});
-    new IntersectionObserver(([e]) => {
+    // Start playback only after the blur-in reveal has finished: a video playing under a running filter flickers on iOS
+    let settled = reduce || !clip.classList.contains('reveal');
+    let inView = false;
+    const sync = () => {
       if (clip.classList.contains('is-missing')) return;
-      if (e.isIntersecting && !reduce) v.play().catch(() => {});
+      if (inView && settled && !reduce) v.play().catch(() => {});
       else v.pause();
-    }, { threshold: 0.35 }).observe(clip);
+    };
+    const settle = () => { if (settled) return; settled = true; sync(); };
+    clip.addEventListener('transitionend', e => { if (e.target === clip && e.propertyName === 'filter') settle(); });
+    new MutationObserver(() => { if (clip.classList.contains('is-in')) setTimeout(settle, 1600); })
+      .observe(clip, { attributes: true, attributeFilter: ['class'] });
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; sync(); }, { threshold: 0.35 }).observe(clip);
   });
 
   /* ---------- Reviews rail: drag to scroll on desktop ---------- */

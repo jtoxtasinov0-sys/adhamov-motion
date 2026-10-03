@@ -275,7 +275,8 @@ html { scrollbar-color: var(--orange-deep) var(--ink); }
 .clip--tall .clip__frame { aspect-ratio: 9 / 16; }
 .clip--wide .clip__frame { aspect-ratio: 16 / 9; }
 .clip__frame { background-size: cover; background-position: center; }
-.clip__frame video { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s linear; }
+.clip__frame video { width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: transform 1.4s var(--ease), opacity .35s linear; }
+.clip.is-in .clip__frame video { transform: scale(1); }
 .clip.is-playing .clip__frame video { opacity: 1; }
 .clip__fallback {
   position: absolute; inset: 0; display: none; place-content: center; justify-items: center; gap: 14px;
@@ -464,7 +465,7 @@ html { scrollbar-color: var(--orange-deep) var(--ink); }
 /* ---------- Reveal (only when JS + motion allowed) ---------- */
 .js-motion .reveal { opacity: 0; transform: translateY(40px); filter: blur(8px); transition: opacity 1.1s var(--ease), transform 1.1s var(--ease), filter 1.1s var(--ease); transition-delay: var(--d, 0s); }
 .js-motion .reveal.is-in { opacity: 1; transform: none; filter: none; }
-.js-motion .clip.reveal { transform: translateY(70px) scale(.96); filter: none; }
+.js-motion .clip.reveal { transform: translateY(70px) scale(.96); }
 .js-motion .clip.reveal.is-in { transform: none; }
 .js-motion .layer__bar { transform: scaleX(0); }
 .js-motion .is-in .layer__bar { transform: scaleX(1); transition-delay: calc(var(--i, 0) * 90ms + .25s); transition-duration: 1s; }
