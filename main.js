@@ -315,6 +315,13 @@
     const v = clip.querySelector('video');
     const missing = () => clip.classList.add('is-missing');
     v.addEventListener('error', missing);
+    // Poster sits under the video; the video only fades in once frames are really painting (no iOS flash)
+    clip.querySelector('.clip__frame').style.backgroundImage = `url("${v.getAttribute('poster')}")`;
+    const shown = () => clip.classList.add('is-playing');
+    v.addEventListener('playing', () => {
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(shown);
+      else setTimeout(shown, 120);
+    }, { once: true });
     const src = v.getAttribute('src');
     fetch(src, { method: 'HEAD' }).then(r => { if (!r.ok) missing(); }).catch(() => {});
     new IntersectionObserver(([e]) => {
