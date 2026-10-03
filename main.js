@@ -266,7 +266,8 @@
   requestAnimationFrame(tick);
 
   /* ---------- Hero photo parallax ---------- */
-  const photo = document.querySelector('.hero__photo img');
+  // Transform the masked wrapper itself: a moving layer under a mask leaves stale tiles on iOS Safari
+  const photo = document.querySelector('.hero__photo');
   if (!reduce) {
     let ticking = false;
     addEventListener('scroll', () => {
