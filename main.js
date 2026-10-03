@@ -213,8 +213,8 @@
 
   // Playhead sweeps the graph in linear time; dot rides the speed curve; ball shows the value.
   let raf = 0;
-  const play = () => {
-    playTitle();
+  const play = (withTitle = true) => {
+    if (withTitle) playTitle();
     if (reduce) { ball.style.left = '100%'; return; }
     cancelAnimationFrame(raf);
     dot.classList.add('is-on');
@@ -233,14 +233,14 @@
     };
     raf = requestAnimationFrame(step);
   };
-  playBtn.addEventListener('click', play);
+  playBtn.addEventListener('click', () => play());
   draw();
 
   /* ---------- Hero intro ---------- */
   const intro = () => requestAnimationFrame(() => {
     hero.classList.add('is-played');
     playTitle();
-    if (!reduce) setTimeout(play, 1700); else ball.style.left = '100%';
+    if (!reduce) setTimeout(() => play(false), 1700); else ball.style.left = '100%';
   });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(intro); else intro();
 
