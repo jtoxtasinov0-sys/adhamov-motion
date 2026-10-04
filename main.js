@@ -145,6 +145,10 @@
     dragging = null;
     if (moved) play();
   };
+  // iOS/Telegram WebView ignores touch-action on SVG children: block native panning by hand
+  const stopTouch = e => { if (activeEl || e.target.closest('.ae-grip')) e.preventDefault(); };
+  svg.addEventListener('touchstart', stopTouch, { passive: false });
+  svg.addEventListener('touchmove', stopTouch, { passive: false });
   [[h1, 'a'], [h2, 'b']].forEach(([el, key]) => {
     el.addEventListener('pointerdown', onDown(el, key));
     el.addEventListener('pointermove', onMove);
