@@ -30,7 +30,8 @@ const TRACK = {
   'banner': 'Eʼlon yozuvi',
   'foot-kanal': 'Footer: Telegram kanal',
   'foot-telegram': 'Footer: @telegram',
-  'foot-instagram': 'Footer: Instagram'
+  'foot-instagram': 'Footer: Instagram',
+  'foot-youtube': 'Footer: YouTube'
 };
 
 const DEFAULT_CONFIG = {
