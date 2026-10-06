@@ -292,7 +292,6 @@
     const siblings = [...li.parentElement.children];
     li.style.setProperty('--i', siblings.indexOf(li));
   });
-  document.querySelectorAll('.work__grid .reveal').forEach((el, i) => el.style.setProperty('--d', `${i * 0.12}s`));
   document.querySelectorAll('.faq__list .reveal').forEach((el, i) => el.style.setProperty('--d', `${i * 0.07}s`));
   const io = new IntersectionObserver(entries => {
     entries.forEach(e => {
@@ -315,40 +314,83 @@
   };
   if (!reduce) { addEventListener('scroll', scrub, { passive: true }); scrub(); }
 
-  /* ---------- Work videos: play in view, fallback when file is missing ---------- */
-  document.querySelectorAll('.clip').forEach(clip => {
-    const v = clip.querySelector('video');
-    const missing = () => clip.classList.add('is-missing');
-    v.addEventListener('error', missing);
-    // Poster sits under the video; the video only fades in once frames are really painting (no iOS flash)
-    clip.querySelector('.clip__frame').style.backgroundImage = `url("${v.getAttribute('poster')}")`;
-    const shown = () => clip.classList.add('is-playing');
-    v.addEventListener('playing', () => {
-      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(shown);
-      else setTimeout(shown, 120);
-    }, { once: true });
-    const src = v.getAttribute('src');
-    fetch(src, { method: 'HEAD' }).then(r => { if (!r.ok) missing(); }).catch(() => {});
+  /* ---------- Work wall: tiles play in view, click opens the HD cut ---------- */
+  const wall = document.querySelector('.wall');
+  if (wall) {
+    const tiles = [...wall.querySelectorAll('.tile')];
+    const lb = document.getElementById('lightbox');
+    const lv = lb.querySelector('video');
     // Start playback only after the blur-in reveal has finished: a video playing under a running filter flickers on iOS
-    let settled = reduce || !clip.classList.contains('reveal');
-    let inView = false;
-    const sync = () => {
-      if (clip.classList.contains('is-missing')) return;
-      if (inView && settled && !reduce) v.play().catch(() => {});
+    let settled = reduce || !wall.classList.contains('reveal');
+    const visible = new Set();
+    const sync = () => tiles.forEach(t => {
+      const v = t.querySelector('video');
+      if (settled && !reduce && visible.has(t) && !lb.open && !document.hidden) { v.preload = 'auto'; v.play().catch(() => {}); }
       else v.pause();
-    };
-    const settle = () => { if (settled) return; settled = true; sync(); };
-    clip.addEventListener('transitionend', e => { if (e.target === clip && e.propertyName === 'filter') settle(); });
-    new MutationObserver(() => { if (clip.classList.contains('is-in')) setTimeout(settle, 1600); })
-      .observe(clip, { attributes: true, attributeFilter: ['class'] });
-    new IntersectionObserver(([e]) => { inView = e.isIntersecting; sync(); }, { threshold: 0.35 }).observe(clip);
-  });
+    });
+    tiles.forEach(t => {
+      const v = t.querySelector('video');
+      t.style.backgroundImage = `url("${v.getAttribute('poster')}")`;
+      v.addEventListener('playing', () => {
+        const shown = () => t.classList.add('is-playing');
+        if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(shown); else setTimeout(shown, 120);
+      }, { once: true });
+      t.addEventListener('click', () => open(t));
+    });
+    const tio = new IntersectionObserver(es => { es.forEach(e => e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)); sync(); }, { threshold: matchMedia('(max-width: 860px)').matches ? 0.9 : 0.2 });
+    tiles.forEach(t => tio.observe(t));
+    document.addEventListener('visibilitychange', sync);
+    new MutationObserver(() => { if (wall.classList.contains('is-in')) setTimeout(() => { settled = true; sync(); }, 600); })
+      .observe(wall, { attributes: true, attributeFilter: ['class'] });
 
-  /* ---------- Reviews rail: drag to scroll on desktop ---------- */
-  document.querySelectorAll('[data-marquee]').forEach(rail => {
-    let x0 = 0, s0 = 0, down = false;
-    rail.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; down = true; x0 = e.clientX; s0 = rail.scrollLeft; rail.classList.add('is-drag'); });
-    addEventListener('pointermove', e => { if (down) rail.scrollLeft = s0 - (e.clientX - x0); });
-    addEventListener('pointerup', () => { down = false; rail.classList.remove('is-drag'); });
-  });
+    const open = t => {
+      lv.src = t.dataset.full;
+      lv.poster = t.querySelector('video').getAttribute('poster');
+      lv.muted = false;
+      lb.showModal();
+      document.documentElement.style.overflow = 'hidden';
+      lenis && lenis.stop();
+      sync();
+      lv.play().catch(() => { lv.muted = true; lv.play().catch(() => {}); });
+    };
+    lb.addEventListener('close', () => { lv.pause(); lv.removeAttribute('src'); lv.load(); document.documentElement.style.overflow = ''; lenis && lenis.start(); sync(); });
+    lb.addEventListener('click', e => { if (e.target === lb) lb.close(); });
+    lb.querySelector('.lightbox__close').addEventListener('click', () => lb.close());
+  }
+  /* ---------- Arrow cursor: white pointer trails the mouse over video tiles, desktop pointers only ---------- */
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    const dot = document.createElement('div');
+    dot.className = 'cursor';
+    dot.setAttribute('aria-hidden', 'true');
+    dot.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 4.2 19.6 13.3 12.4 15.6 7.7 21.3Z"/></svg>';
+    document.body.append(dot);
+    document.documentElement.classList.add('has-cursor');
+
+    let mx = -200, my = -200, x = mx, y = my, s = 0, target = 0, raf = 0;
+    const tick = () => {
+      if (reduce) { x = mx; y = my; s = target; }
+      else {
+        // While hidden, sit on the pointer so the arrow grows in place instead of flying in from the edge
+        if (s < 0.02) { x = mx; y = my; } else { x += (mx - x) * 0.22; y += (my - y) * 0.22; }
+        s += (target - s) * 0.18;
+        if (target === 0 && s < 0.005) s = 0;
+      }
+      dot.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s.toFixed(3)})`;
+      const moving = Math.abs(mx - x) > 0.1 || Math.abs(my - y) > 0.1 || Math.abs(target - s) > 0.001;
+      raf = moving ? requestAnimationFrame(tick) : 0;
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    const hit = node => {
+      target = node && node.closest && node.closest('.tile') ? 1 : 0;
+      kick();
+    };
+    addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse') return;
+      mx = e.clientX; my = e.clientY;
+      hit(e.target);
+    }, { passive: true });
+    // Content slides under a still pointer while scrolling
+    addEventListener('scroll', () => { if (mx > 0) hit(document.elementFromPoint(mx, my)); }, { passive: true });
+    document.documentElement.addEventListener('mouseleave', () => { target = 0; kick(); });
+  }
 })();
