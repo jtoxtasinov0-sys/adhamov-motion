@@ -394,3 +394,83 @@
     document.documentElement.addEventListener('mouseleave', () => { target = 0; kick(); });
   }
 })();
+
+/* ---------- Admin-driven content (prices, sale, sold out, banner, Telegram) and click counting ---------- */
+(() => {
+  const send = id => {
+    const body = JSON.stringify({ id });
+    try {
+      if (!navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }))) throw 0;
+    } catch { fetch('/api/track', { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {}); }
+  };
+  // One "view" per tab session, so reloads don't inflate the count
+  let seen = false;
+  try { seen = sessionStorage.getItem('mmc-view') === '1'; sessionStorage.setItem('mmc-view', '1'); } catch {}
+  if (!seen) send('view');
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-track]');
+    if (a) send(a.dataset.track);
+  });
+
+  const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  const live = until => !until || Date.parse(until) > Date.now();
+  const left = until => {
+    const ms = Date.parse(until) - Date.now();
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
+    if (d >= 1) return `${d} kun ${h} soat qoldi`;
+    return `${Math.max(1, Math.ceil(ms / 36e5))} soat qoldi`;
+  };
+
+  const apply = cfg => {
+    if (!cfg || !cfg.courses) return;
+    for (const id of ['c1', 'c2']) {
+      const c = cfg.courses[id], name = document.getElementById(id);
+      if (!c || !name) continue;
+      const card = name.closest('.course'), price = card.querySelector('.course__price');
+      const onSale = c.sale != null && c.sale < c.price && live(c.saleUntil);
+      card.classList.toggle('is-sale', onSale);
+      card.querySelector('.course__sale')?.remove();
+      if (onSale) {
+        const pct = Math.round((1 - c.sale / c.price) * 100);
+        price.innerHTML = `<s class="price__old"><span class="cur">$</span>${c.price}</s><span class="cur">$</span>${c.sale}`;
+        const tag = document.createElement('p');
+        tag.className = 'course__sale';
+        const end = c.saleUntil ? new Date(c.saleUntil) : null;
+        tag.innerHTML = `<b>−${pct}% chegirma</b>` + (end ? `<span>${end.getDate()}-${MONTHS[end.getMonth()]}gacha · ${left(c.saleUntil)}</span>` : '');
+        card.querySelector('.course__head').after(tag);
+      } else {
+        price.innerHTML = `<span class="cur">$</span>${c.price}`;
+      }
+      card.classList.toggle('is-soldout', !!c.soldOut);
+      const btn = card.querySelector('.btn--block');
+      btn.firstChild.textContent = c.soldOut ? '\n      Joylar tugadi · navbatga yozilish\n      ' : '\n      Kursga yozilish\n      ';
+    }
+
+    if (cfg.telegram && cfg.telegram !== 'adhamov_motion') {
+      document.querySelectorAll('[data-tg]').forEach(a => {
+        a.href = 'https://t.me/' + cfg.telegram;
+        a.childNodes.forEach(n => { if (n.nodeType === 3) n.textContent = n.textContent.replace('@adhamov_motion', '@' + cfg.telegram); });
+      });
+    }
+
+    const b = cfg.banner;
+    let closed = false;
+    try { closed = sessionStorage.getItem('mmc-banner') === b.text; } catch {}
+    if (b && b.on && b.text && live(b.until) && !closed) {
+      const bar = document.createElement('div');
+      bar.className = 'promo';
+      bar.setAttribute('role', 'status');
+      bar.innerHTML = '<a class="promo__text" href="#kurslar" data-track="banner"></a><button class="promo__x" type="button" aria-label="Yopish"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>';
+      bar.querySelector('.promo__text').textContent = b.text;
+      bar.querySelector('.promo__x').addEventListener('click', () => {
+        bar.classList.remove('is-in');
+        try { sessionStorage.setItem('mmc-banner', b.text); } catch {}
+        setTimeout(() => bar.remove(), 500);
+      });
+      document.body.append(bar);
+      setTimeout(() => bar.classList.add('is-in'), 1600);
+    }
+  };
+
+  fetch('/api/config').then(r => (r.ok ? r.json() : null)).then(apply).catch(() => {});
+})();

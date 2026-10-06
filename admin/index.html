@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin panel — Motion Mastery Club</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: "Bricolage"; src: url("../bricolage-grotesque-latin-wght-normal.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Bricolage"; src: url("../bricolage-grotesque-latin-ext-wght-normal.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0100-024F, U+02BB-02BC, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF; }
+@font-face { font-family: "JetBrains Mono"; src: url("../jetbrains-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
+:root {
+  --ink: #0c0806; --ink-2: #16100c; --ink-3: #241a14; --line: #2e231b;
+  --paper: #fff1e4; --muted: #b7a593; --orange: #ff5a00; --orange-hot: #ff7a1a; --on-orange: #1a0a02;
+  --good: #5fd18b; --bad: #ff6b5a;
+  --display: "Bricolage", "Helvetica Neue", sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 400 1rem/1.5 var(--display); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--orange-hot); outline-offset: 2px; }
+button, input { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* login */
+.login { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+.login form { width: min(380px, 100%); padding: 32px; border-radius: 24px; background: var(--ink-2); border: 1px solid var(--line); display: grid; gap: 16px; }
+.login h1 { margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.login p { margin: 0; color: var(--muted); font-size: .9375rem; }
+.err { color: var(--bad); font-size: .875rem; min-height: 1.3em; margin: 0; }
+
+/* layout */
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 14px clamp(16px, 4vw, 40px); background: rgba(12,8,6,.86); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.top h1 { margin: 0 auto 0 0; font-size: 1.125rem; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+.top h1 svg { width: 18px; height: 18px; fill: var(--orange); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 120px; display: grid; gap: 28px; }
+.panel { background: var(--ink-2); border: 1px solid var(--line); border-radius: 22px; padding: clamp(18px, 3vw, 28px); }
+.panel__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+h2 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+.hint { margin: 4px 0 0; color: var(--muted); font-size: .875rem; }
+
+/* controls */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--paper); color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; transition: background .2s, transform .2s; }
+.btn:hover { background: var(--orange); color: var(--on-orange); }
+.btn:active { transform: scale(.98); }
+.btn--ghost { background: transparent; color: var(--paper); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn--ghost:hover { background: var(--ink-3); color: var(--paper); }
+.btn--orange { background: var(--orange); color: var(--on-orange); }
+.btn--orange:hover { background: var(--orange-hot); }
+.btn:disabled { opacity: .5; cursor: progress; }
+.seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--ink); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: .875rem; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink-3); color: var(--paper); }
+label.f { display: grid; gap: 6px; font-size: .8125rem; font-weight: 600; color: var(--muted); }
+.in { position: relative; display: flex; align-items: center; }
+.in > span { position: absolute; left: 14px; color: var(--muted); font-weight: 700; pointer-events: none; }
+input[type=text], input[type=number], input[type=password], input[type=datetime-local] {
+  width: 100%; min-height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--ink); color: var(--paper); font-size: 1rem;
+}
+.in > span + input { padding-left: 30px; }
+input:focus { outline: none; border-color: var(--orange); }
+input::placeholder { color: #8f7d6c; }
+.switch { display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 600; font-size: .9375rem; }
+.switch input { appearance: none; width: 44px; height: 26px; border-radius: 999px; background: var(--ink-3); border: 1px solid var(--line); position: relative; cursor: pointer; flex: none; margin: 0; transition: background .2s; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform .2s, background .2s; }
+.switch input:checked { background: var(--orange); border-color: var(--orange); }
+.switch input:checked::after { transform: translateX(18px); background: var(--on-orange); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--ink); border-radius: 999px; padding: 6px 12px; font-size: .8125rem; font-weight: 600; cursor: pointer; color: var(--paper); }
+.chip:hover { border-color: var(--orange); }
+
+/* stats */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+.kpi { padding: 16px 18px; border-radius: 16px; background: var(--ink); border: 1px solid var(--line); }
+.kpi small { display: block; color: var(--muted); font-size: .8125rem; font-weight: 600; }
+.kpi b { display: block; margin-top: 6px; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi em { display: block; margin-top: 6px; font: normal 600 .75rem/1 var(--mono); color: var(--muted); }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 220px; overflow: visible; }
+.chart .grid line { stroke: var(--line); }
+.chart .axis text { fill: var(--muted); font: 500 11px var(--mono); }
+.chart .b-view { fill: #4a3a2e; }
+.chart .b-click { fill: var(--orange); }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .hit:hover { fill: rgba(255,241,228,.05); }
+.legend { display: flex; gap: 18px; margin: 0 0 10px; font-size: .8125rem; color: var(--muted); font-weight: 600; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.tip { position: absolute; pointer-events: none; padding: 8px 12px; border-radius: 10px; background: var(--paper); color: var(--ink); font-size: .8125rem; line-height: 1.4; white-space: nowrap; transform: translate(-50%, -100%); box-shadow: 0 10px 24px -10px #000; }
+.rank { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 6px; }
+.rank li { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border-radius: 12px; background: var(--ink); overflow: hidden; font-size: .9375rem; }
+.rank li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: rgba(255,90,0,.16); border-right: 2px solid var(--orange); }
+.rank li > * { position: relative; }
+.rank b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.rank small { color: var(--muted); font-weight: 500; }
+.empty { color: var(--muted); font-size: .9375rem; padding: 18px 0; }
+
+/* courses */
+.courses { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cc { border-radius: 18px; padding: 20px; display: grid; gap: 14px; border: 1px solid var(--line); background: var(--ink); }
+.cc h3 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
+.cc h3 i { width: 12px; height: 12px; border-radius: 4px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.preview { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-radius: 14px; background: var(--paper); color: var(--ink); }
+.preview.or { background: var(--orange); color: var(--on-orange); }
+.preview .p { font-size: 2rem; font-weight: 800; letter-spacing: -.05em; line-height: 1; }
+.preview s { font-size: 1rem; opacity: .5; margin-right: 6px; font-weight: 700; }
+.preview .t { font: 700 .75rem/1.2 var(--mono); padding: 5px 9px; border-radius: 999px; background: var(--ink); color: var(--paper); }
+.preview .t.off { background: transparent; color: inherit; opacity: .75; padding: 0; }
+.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* save bar */
+.save { position: fixed; left: 50%; bottom: 18px; z-index: 20; transform: translate(-50%, 160%); display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 20px; border-radius: 999px; background: var(--paper); color: var(--ink); box-shadow: 0 20px 44px -16px #000; transition: transform .45s cubic-bezier(.2,.8,.2,1); font-weight: 700; font-size: .9375rem; }
+.save.on { transform: translate(-50%, 0); }
+.save .btn { background: var(--orange); color: var(--on-orange); }
+.save .btn--ghost { background: transparent; color: var(--ink); box-shadow: none; }
+.toast { position: fixed; top: 76px; left: 50%; transform: translate(-50%, -20px); opacity: 0; z-index: 30; padding: 10px 18px; border-radius: 999px; background: var(--good); color: #062b14; font-weight: 700; font-size: .9375rem; transition: .3s; pointer-events: none; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { background: var(--bad); color: #2b0703; }
+
+@media (max-width: 860px) {
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .courses, .settings { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .row { grid-template-columns: 1fr; }
+  .top .btn--ghost span { display: none; }
+  .save { left: 16px; right: 16px; transform: translateY(160%); justify-content: space-between; }
+  .save.on { transform: none; }
+}
+</style>
+</head>
+<body>
+
+<section class="login" id="login">
+  <form id="loginForm">
+    <h1>Admin panel</h1>
+    <p>Motion Mastery Club sayti boshqaruvi. Davom etish uchun parolni kiriting.</p>
+    <label class="f">Parol<input type="password" id="pass" autocomplete="current-password" required></label>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn btn--orange" type="submit">Kirish</button>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <h1><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 29 16 16 29 3 16Z"/></svg>Admin panel</h1>
+    <a class="btn btn--ghost" href="/" target="_blank" rel="noopener"><span>Saytni ochish</span> ↗</a>
+    <button class="btn btn--ghost" type="button" id="logout">Chiqish</button>
+  </header>
+
+  <main class="wrap">
+    <!-- STATS -->
+    <section class="panel" aria-labelledby="hStats">
+      <div class="panel__head">
+        <div>
+          <h2 id="hStats">Statistika</h2>
+          <p class="hint">Sayt necha marta ochilgani va tugmalar necha marta bosilgani. Vaqt Toshkent boʻyicha.</p>
+        </div>
+        <div class="seg" role="group" aria-label="Davr">
+          <button type="button" data-days="1">Bugun</button>
+          <button type="button" data-days="7">7 kun</button>
+          <button type="button" data-days="30" aria-pressed="true">30 kun</button>
+          <button type="button" data-days="90">90 kun</button>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><small>Sayt ochildi</small><b id="kView">—</b><em id="kViewT"></em></div>
+        <div class="kpi"><small>Telegramga bosildi</small><b id="kTg">—</b><em id="kTgT"></em></div>
+        <div class="kpi"><small>Konversiya</small><b id="kConv">—</b><em>ochganlardan Telegramga oʻtgan</em></div>
+        <div class="kpi"><small>Eng koʻp bosilgan tarif</small><b id="kBest" style="font-size:1.3rem;letter-spacing:-.02em">—</b><em id="kBestT"></em></div>
+      </div>
+      <div class="legend"><span><i style="background:#4a3a2e"></i>Sayt ochildi</span><span><i style="background:var(--orange)"></i>Telegramga bosildi</span></div>
+      <div class="chart" id="chart"></div>
+      <h3 style="margin:26px 0 0;font-size:1.0625rem;font-weight:800">Tugmalar boʻyicha</h3>
+      <ul class="rank" id="rank"></ul>
+    </section>
+
+    <!-- PRICES -->
+    <section class="panel" aria-labelledby="hPrice">
+      <div class="panel__head">
+        <div>
+          <h2 id="hPrice">Narxlar va chegirma</h2>
+          <p class="hint">Chegirma narxini yozsangiz, saytda eski narx ustidan chizilib, yangisi chiqadi. Tugash sanasi kelganda chegirma oʻzi oʻchadi.</p>
+        </div>
+      </div>
+      <div class="courses" id="courses"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel" aria-labelledby="hSet">
+      <div class="panel__head">
+        <div>
+          <h2 id="hSet">Sozlamalar</h2>
+          <p class="hint">Saytdagi hamma «Yozilish» tugmalari shu Telegram manzilga olib boradi.</p>
+        </div>
+      </div>
+      <div class="settings">
+        <div class="cc">
+          <h3>Telegram</h3>
+          <label class="f">Username<div class="in"><span>@</span><input type="text" id="tg" placeholder="adhamov_motion" autocomplete="off" spellcheck="false"></div></label>
+        </div>
+        <div class="cc">
+          <h3>Eʼlon yozuvi</h3>
+          <label class="switch"><input type="checkbox" id="bOn">Saytda koʻrsatish</label>
+          <label class="f">Matn<input type="text" id="bText" maxlength="160" placeholder="Masalan: Faqat shu hafta — barcha tariflarga 20% chegirma!"></label>
+          <div class="chips" id="bChips"></div>
+          <label class="f">Qachongacha (ixtiyoriy)<input type="datetime-local" id="bUntil"></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="save" id="save" role="region" aria-label="Saqlash">
+    <span>Oʻzgarishlar saqlanmagan</span>
+    <button class="btn btn--ghost" type="button" id="undo">Bekor qilish</button>
+    <button class="btn" type="button" id="saveBtn">Saqlash</button>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const COURSES = { c1: { name: 'Motion Mastery Club', color: '#fff1e4', cls: '' }, c2: { name: 'Motion — 0 dan', color: '#ff5a00', cls: 'or' } };
+  const TG_IDS = ['nav-yozilish', 'hero-telegram', 'c1-yozilish', 'c2-yozilish', 'faq-telegram', 'close-telegram', 'foot-telegram', 'banner'];
+  let key = '', days = 30, saved = null, data = null;
+  try { key = sessionStorage.getItem('mmc-admin') || ''; } catch {}
+
+  const api = async (method, body) => {
+    const r = await fetch('/api/admin' + (method === 'GET' ? '?days=' + days : ''), {
+      method, headers: { 'x-admin-key': key, 'Content-Type': 'application/json' }, body: body && JSON.stringify(body)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.error || 'Xatolik ' + r.status), { status: r.status });
+    return j;
+  };
+  const toast = (msg, bad) => {
+    const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('on');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2400);
+  };
+  const fmt = n => n.toLocaleString('ru-RU');
+
+  /* ----- login ----- */
+  async function load() {
+    try {
+      data = await api('GET');
+      $('#login').hidden = true; $('#app').hidden = false;
+      if (!saved) { saved = data.config; fillForm(saved); }
+      drawStats(data.stats);
+    } catch (e) {
+      if (e.status === 401 || e.status === 429) {
+        key = ''; try { sessionStorage.removeItem('mmc-admin'); } catch {}
+        $('#app').hidden = true; $('#login').hidden = false;
+        $('#loginErr').textContent = $('#pass').value ? e.message : '';
+      } else toast(e.message, true);
+    }
+  }
+  $('#loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    key = $('#pass').value;
+    try { sessionStorage.setItem('mmc-admin', key); } catch {}
+    load();
+  });
+  $('#logout').addEventListener('click', () => { try { sessionStorage.removeItem('mmc-admin'); } catch {} location.reload(); });
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    days = +b.dataset.days; load();
+  }));
+
+  /* ----- stats ----- */
+  function drawStats(s) {
+    const sum = id => s.days.reduce((a, d) => a + (d.counts[id] || 0), 0);
+    const tgOf = c => TG_IDS.reduce((a, id) => a + (c[id] || 0), 0);
+    const views = sum('view'), tg = s.days.reduce((a, d) => a + tgOf(d.counts), 0);
+    $('#kView').textContent = fmt(views);
+    $('#kTg').textContent = fmt(tg);
+    $('#kViewT').textContent = 'jami: ' + fmt(s.total.view || 0);
+    $('#kTgT').textContent = 'jami: ' + fmt(tgOf(s.total));
+    $('#kConv').textContent = views ? (tg / views * 100).toFixed(1) + '%' : '—';
+    const c1 = sum('c1-yozilish'), c2 = sum('c2-yozilish');
+    $('#kBest').textContent = c1 || c2 ? (c1 >= c2 ? COURSES.c1.name : COURSES.c2.name) : '—';
+    $('#kBestT').textContent = c1 || c2 ? `${fmt(c1)} va ${fmt(c2)} ta bosish` : 'hali bosilmagan';
+
+    // daily chart
+    const W = 1000, H = 220, pad = { l: 34, r: 6, t: 8, b: 26 };
+    const max = Math.max(4, ...s.days.map(d => Math.max(d.counts.view || 0, tgOf(d.counts))));
+    const step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step;
+    const n = s.days.length, bw = (W - pad.l - pad.r) / n, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / top);
+    let g = '<g class="grid">';
+    for (let i = 0; i <= 4; i++) { const v = top * i / 4, yy = y(v); g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yy}" y2="${yy}"/>`; }
+    g += '</g><g class="axis">';
+    for (let i = 0; i <= 4; i++) { const v = top * i / 4; g += `<text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }
+    const every = Math.ceil(n / 8);
+    s.days.forEach((d, i) => { if (i % every === 0 || i === n - 1) g += `<text x="${pad.l + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${d.date.slice(8)}.${d.date.slice(5, 7)}</text>`; });
+    g += '</g>';
+    const gap = Math.min(4, bw * .2);
+    s.days.forEach((d, i) => {
+      const x = pad.l + bw * i + gap / 2, w = bw - gap, v = d.counts.view || 0, t = tgOf(d.counts);
+      g += `<rect class="b-view" x="${x}" y="${y(v)}" width="${w}" height="${y(0) - y(v)}" rx="${Math.min(4, w / 3)}"/>`;
+      g += `<rect class="b-click" x="${x + w * .2}" y="${y(t)}" width="${w * .6}" height="${y(0) - y(t)}" rx="${Math.min(3, w / 4)}"/>`;
+      g += `<rect class="hit" data-i="${i}" x="${pad.l + bw * i}" y="${pad.t}" width="${bw}" height="${H - pad.t - pad.b}"/>`;
+    });
+    const ch = $('#chart');
+    ch.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Kunlik grafik">${g}</svg><div class="tip" hidden></div>`;
+    const tip = ch.querySelector('.tip');
+    ch.querySelectorAll('.hit').forEach(r => {
+      r.addEventListener('pointerenter', () => {
+        const d = s.days[r.dataset.i], box = r.getBoundingClientRect(), cb = ch.getBoundingClientRect();
+        tip.innerHTML = `<b>${d.date.slice(8)}.${d.date.slice(5, 7)}.${d.date.slice(0, 4)}</b><br>Ochildi: ${fmt(d.counts.view || 0)}<br>Telegramga: ${fmt(tgOf(d.counts))}`;
+        tip.style.left = (box.left - cb.left + box.width / 2) + 'px'; tip.style.top = '0px'; tip.hidden = false;
+      });
+      r.addEventListener('pointerleave', () => { tip.hidden = true; });
+    });
+
+    // per-button ranking for the period
+    const rows = Object.keys(s.labels).filter(id => id !== 'view').map(id => ({ id, n: sum(id), all: s.total[id] || 0 })).sort((a, b) => b.n - a.n || b.all - a.all);
+    const mx = Math.max(1, ...rows.map(r => r.n));
+    $('#rank').innerHTML = rows.some(r => r.n || r.all)
+      ? rows.map(r => `<li style="--w:${r.n / mx * 100}%"><span>${s.labels[r.id]}</span><span><b>${fmt(r.n)}</b> <small>/ jami ${fmt(r.all)}</small></span></li>`).join('')
+      : '<li class="empty" style="--w:0">Hali hech narsa bosilmagan. Sayt ochilgandan keyin bu yerda raqamlar paydo boʻladi.</li>';
+  }
+
+  /* ----- prices & settings form ----- */
+  const toLocal = iso => { if (!iso) return ''; const d = new Date(iso); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
+  const fromLocal = v => (v ? new Date(v).toISOString() : '');
+
+  $('#courses').innerHTML = Object.entries(COURSES).map(([id, c]) => `
+    <div class="cc" data-c="${id}">
+      <h3><i style="background:${c.color}"></i>${c.name}</h3>
+      <div class="row">
+        <label class="f">Asosiy narx<div class="in"><span>$</span><input type="number" min="1" step="1" data-k="price" inputmode="numeric"></div></label>
+        <label class="f">Chegirma narxi<div class="in"><span>$</span><input type="number" min="0" step="1" data-k="sale" inputmode="numeric" placeholder="yoʻq"></div></label>
+      </div>
+      <div class="chips">
+        <button class="chip" type="button" data-pct="10">−10%</button>
+        <button class="chip" type="button" data-pct="20">−20%</button>
+        <button class="chip" type="button" data-pct="30">−30%</button>
+        <button class="chip" type="button" data-pct="50">−50%</button>
+        <button class="chip" type="button" data-pct="0">Chegirmani olib tashlash</button>
+      </div>
+      <label class="f">Chegirma tugash vaqti (ixtiyoriy)<input type="datetime-local" data-k="saleUntil"></label>
+      <label class="switch"><input type="checkbox" data-k="soldOut">Joylar tugadi</label>
+      <div class="preview ${c.cls}" aria-label="Saytda shunday koʻrinadi"><span class="p"></span><span class="t"></span></div>
+    </div>`).join('');
+
+  const BANNERS = ['Faqat shu hafta — barcha tariflarga chegirma!', 'Yangi oqim tez orada boshlanadi. Joylar cheklangan!', 'Motion — 0 dan kursiga yozilish ochiq'];
+  $('#bChips').innerHTML = BANNERS.map(t => `<button class="chip" type="button">${t}</button>`).join('');
+  $('#bChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { $('#bText').value = b.textContent; $('#bOn').checked = true; changed(); } });
+
+  function fillForm(cfg) {
+    for (const id in COURSES) {
+      const el = document.querySelector(`[data-c="${id}"]`), c = cfg.courses[id];
+      el.querySelector('[data-k=price]').value = c.price;
+      el.querySelector('[data-k=sale]').value = c.sale ?? '';
+      el.querySelector('[data-k=saleUntil]').value = toLocal(c.saleUntil);
+      el.querySelector('[data-k=soldOut]').checked = c.soldOut;
+    }
+    $('#tg').value = cfg.telegram;
+    $('#bOn').checked = cfg.banner.on; $('#bText').value = cfg.banner.text; $('#bUntil').value = toLocal(cfg.banner.until);
+    preview();
+  }
+  function readForm() {
+    const courses = {};
+    for (const id in COURSES) {
+      const el = document.querySelector(`[data-c="${id}"]`), sale = el.querySelector('[data-k=sale]').value;
+      courses[id] = {
+        price: +el.querySelector('[data-k=price]').value,
+        sale: sale === '' ? null : +sale,
+        saleUntil: fromLocal(el.querySelector('[data-k=saleUntil]').value),
+        soldOut: el.querySelector('[data-k=soldOut]').checked
+      };
+    }
+    return { courses, telegram: $('#tg').value.trim().replace(/^@/, ''), banner: { on: $('#bOn').checked, text: $('#bText').value.trim(), until: fromLocal($('#bUntil').value) } };
+  }
+  function preview() {
+    const f = readForm();
+    for (const id in COURSES) {
+      const el = document.querySelector(`[data-c="${id}"]`), c = f.courses[id];
+      const on = c.sale != null && c.sale < c.price && (!c.saleUntil || Date.parse(c.saleUntil) > Date.now());
+      el.querySelector('.p').innerHTML = on ? `<s>$${c.price}</s>$${c.sale}` : `$${c.price || '—'}`;
+      const t = el.querySelector('.t');
+      t.className = 't' + (on || c.soldOut ? '' : ' off');
+      t.textContent = c.soldOut ? 'Joylar tugadi' : on ? `−${Math.round((1 - c.sale / c.price) * 100)}% chegirma` : (c.sale != null && c.sale >= c.price ? 'chegirma asosiy narxdan kichik boʻlsin' : 'chegirmasiz');
+    }
+  }
+  const same = () => saved && JSON.stringify(readForm()) === JSON.stringify(saved);
+  function changed() { preview(); $('#save').classList.toggle('on', !same()); }
+  document.querySelector('.wrap').addEventListener('input', changed);
+  $('#courses').addEventListener('click', e => {
+    const b = e.target.closest('[data-pct]'); if (!b) return;
+    const el = b.closest('.cc'), price = +el.querySelector('[data-k=price]').value, pct = +b.dataset.pct;
+    el.querySelector('[data-k=sale]').value = pct ? Math.round(price * (1 - pct / 100)) : '';
+    if (!pct) el.querySelector('[data-k=saleUntil]').value = '';
+    changed();
+  });
+  $('#undo').addEventListener('click', () => { fillForm(saved); changed(); });
+  $('#saveBtn').addEventListener('click', async () => {
+    const btn = $('#saveBtn'); btn.disabled = true;
+    try {
+      const r = await api('POST', readForm());
+      saved = r.config; fillForm(saved); changed();
+      toast('Saqlandi. Saytda 15 soniya ichida yangilanadi.');
+    } catch (e) { toast(e.message, true); }
+    btn.disabled = false;
+  });
+  addEventListener('beforeunload', e => { if (saved && !same()) e.preventDefault(); });
+
+  if (key) load(); else $('#pass').focus();
+})();
+</script>
+</body>
+</html>
