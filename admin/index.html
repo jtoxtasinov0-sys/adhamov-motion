@@ -97,7 +97,7 @@ input::placeholder { color: #8f7d6c; }
 
 /* courses */
 .courses { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.cc { border-radius: 18px; padding: 20px; display: grid; gap: 14px; border: 1px solid var(--line); background: var(--ink); }
+.cc { border-radius: 18px; padding: 20px; display: grid; align-content: start; gap: 14px; border: 1px solid var(--line); background: var(--ink); }
 .cc h3 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
 .cc h3 i { width: 12px; height: 12px; border-radius: 4px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -269,6 +269,7 @@ input::placeholder { color: #8f7d6c; }
   }));
 
   /* ----- stats ----- */
+  addEventListener('resize', () => { clearTimeout(drawStats.t); drawStats.t = setTimeout(() => data && drawStats(data.stats), 150); });
   function drawStats(s) {
     const sum = id => s.days.reduce((a, d) => a + (d.counts[id] || 0), 0);
     const tgOf = c => TG_IDS.reduce((a, id) => a + (c[id] || 0), 0);
@@ -283,7 +284,7 @@ input::placeholder { color: #8f7d6c; }
     $('#kBestT').textContent = c1 || c2 ? `${fmt(c1)} va ${fmt(c2)} ta bosish` : 'hali bosilmagan';
 
     // daily chart
-    const W = 1000, H = 220, pad = { l: 34, r: 6, t: 8, b: 26 };
+    const W = Math.max(320, $('#chart').clientWidth || 1000), H = 220, pad = { l: 34, r: 6, t: 8, b: 26 };
     const max = Math.max(4, ...s.days.map(d => Math.max(d.counts.view || 0, tgOf(d.counts))));
     const step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step;
     const n = s.days.length, bw = (W - pad.l - pad.r) / n, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / top);
@@ -291,8 +292,8 @@ input::placeholder { color: #8f7d6c; }
     for (let i = 0; i <= 4; i++) { const v = top * i / 4, yy = y(v); g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yy}" y2="${yy}"/>`; }
     g += '</g><g class="axis">';
     for (let i = 0; i <= 4; i++) { const v = top * i / 4; g += `<text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }
-    const every = Math.ceil(n / 8);
-    s.days.forEach((d, i) => { if (i % every === 0 || i === n - 1) g += `<text x="${pad.l + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${d.date.slice(8)}.${d.date.slice(5, 7)}</text>`; });
+    const every = Math.ceil(n / (W < 600 ? 5 : 8));
+    s.days.forEach((d, i) => { if (i % every === 0 || (i === n - 1 && i % every >= every / 2)) g += `<text x="${pad.l + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${d.date.slice(8)}.${d.date.slice(5, 7)}</text>`; });
     g += '</g>';
     const gap = Math.min(4, bw * .2);
     s.days.forEach((d, i) => {
@@ -302,7 +303,7 @@ input::placeholder { color: #8f7d6c; }
       g += `<rect class="hit" data-i="${i}" x="${pad.l + bw * i}" y="${pad.t}" width="${bw}" height="${H - pad.t - pad.b}"/>`;
     });
     const ch = $('#chart');
-    ch.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Kunlik grafik">${g}</svg><div class="tip" hidden></div>`;
+    ch.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Kunlik grafik">${g}</svg><div class="tip" hidden></div>`;
     const tip = ch.querySelector('.tip');
     ch.querySelectorAll('.hit').forEach(r => {
       r.addEventListener('pointerenter', () => {
