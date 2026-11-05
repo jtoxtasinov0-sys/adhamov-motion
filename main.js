@@ -3,15 +3,50 @@
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Phones and tablets: no blur filters in animations (a blur redrawn every frame is what made weak phones stutter)
   const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
-  const BLUR = px => (fine ? `blur(${px}px)` : 'none');
+  const BLUR = px => (fine && !lite ? `blur(${px}px)` : 'none');
   if (!reduce) root.classList.add('js-motion');
+
+  /* ---------- Weak computer / Chrome without graphics acceleration: the page lightens itself ----------
+     Blur, backdrop blur and the JS smooth scroll are what drop frames there; "lite" switches them off (videos keep playing). */
+  let lite = false;
+  const goLite = () => {
+    if (lite) return;
+    lite = true;
+    root.classList.add('lite');
+    if (lenis) { lenis.destroy(); lenis = null; } // native scrolling: never lags behind the wheel
+  };
+  if (fine && !reduce) {
+    // no hardware acceleration (software drawing): lite right away
+    try {
+      const gl = document.createElement('canvas').getContext('webgl', { failIfMajorPerformanceCaveat: true });
+      if (!gl) goLite();
+      else { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); }
+    } catch (e) {}
+    // otherwise watch the frame rate: below 40 fps over 1.5 s → lite
+    let n = 0, sum = 0, slow = 0, last = performance.now();
+    const watch = now => {
+      const dt = now - last; last = now;
+      if (lite) return;
+      const lbOpen = document.querySelector('dialog[open]');
+      if (document.hidden || lbOpen || dt > 1000 || now < 2500) n = sum = slow = 0;
+      else {
+        n++; sum += dt; if (dt > 50) slow++;
+        if (sum >= 1500 && n >= 20) {
+          if (1000 * n / sum < 40 || slow > 8) { goLite(); return; }
+          n = sum = slow = 0;
+        }
+      }
+      requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  }
 
   /* ---------- Smooth scroll (Lenis, desktop mouse wheel only) ----------
      Loaded after the page is ready, so a slow CDN never holds the site back; touch devices keep native scrolling. */
-  let lenis = null, lenisTried = false;
+  var lenis = null, lenisTried = false;
   const LENIS_SRC = 'https://unpkg.com/lenis@1.1.13/dist/lenis.min.js';
   const startLenis = () => {
-    if (reduce || !fine || lenis) return;
+    if (reduce || !fine || lenis || lite) return;
     if (!window.Lenis) {
       if (lenisTried) return; // one attempt only: if the CDN is down, native scrolling stays
       lenisTried = true;
@@ -21,13 +56,13 @@
       return;
     }
     lenis = new window.Lenis({ duration: 1.15, easing: t => 1 - Math.pow(1 - t, 4), smoothWheel: true });
-    const raf = time => { lenis.raf(time); requestAnimationFrame(raf); };
+    const raf = time => { if (!lenis) return; lenis.raf(time); requestAnimationFrame(raf); };
     requestAnimationFrame(raf);
     document.querySelectorAll('a[href^="#"]').forEach(a => {
       a.addEventListener('click', e => {
         const id = a.getAttribute('href');
         const target = id.length > 1 && document.querySelector(id);
-        if (!target) return;
+        if (!target || !lenis) return;
         e.preventDefault();
         lenis.scrollTo(target, { offset: id === '#top' ? 0 : -80 });
       });

@@ -585,6 +585,15 @@ html { scrollbar-color: var(--orange-deep) var(--ink); }
   .js-motion .hero__photo img, .hero.is-played .hero__photo img { filter: none; }
   .hero__title .ch { will-change: transform, opacity; }
 }
+/* Weak computer / no graphics acceleration (main.js sets "lite"): same solid tints as on phones */
+html.lite .nav.is-scrolled { background: rgba(12, 8, 6, .94); -webkit-backdrop-filter: none; backdrop-filter: none; }
+html.lite .graph { background: rgba(12, 8, 6, .92); -webkit-backdrop-filter: none; backdrop-filter: none; }
+html.lite .lightbox__close { background: rgba(255,241,228,.16); -webkit-backdrop-filter: none; backdrop-filter: none; }
+html.lite.js-motion .reveal { filter: none; transition-property: opacity, transform; }
+html.lite.js-motion .hero__photo img, html.lite .hero.is-played .hero__photo img { filter: none; }
+html.lite .hero__title .ch { will-change: transform, opacity; }
+html.lite .cursor svg { filter: none; }
+
 /* Without Lenis (touch devices), menu links still glide to their section */
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 
