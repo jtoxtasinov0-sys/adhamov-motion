@@ -574,6 +574,20 @@ html { scrollbar-color: var(--orange-deep) var(--ink); }
   .strip__row { animation: none; }
 }
 
+/* ---------- Phones and tablets: no live blur ----------
+   Blur filters and backdrop blur are redrawn on every frame while the page scrolls or videos play,
+   which made weaker phones stutter. Touch devices get the same look with solid tints instead. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .nav.is-scrolled { background: rgba(12, 8, 6, .94); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .graph { background: rgba(12, 8, 6, .92); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .lightbox__close { background: rgba(255,241,228,.16); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .js-motion .reveal { filter: none; transition-property: opacity, transform; }
+  .js-motion .hero__photo img, .hero.is-played .hero__photo img { filter: none; }
+  .hero__title .ch { will-change: transform, opacity; }
+}
+/* Without Lenis (touch devices), menu links still glide to their section */
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
 /* ---------- Admin-driven: sale price, sold out, promo banner ---------- */
 .price__old { display: block; margin-bottom: .12em; font-size: .36em; font-weight: 700; letter-spacing: -.02em; text-align: right; opacity: .55; text-decoration-thickness: .1em; }
 .price__old .cur { font-size: 1em; vertical-align: baseline; }

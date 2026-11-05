@@ -1,12 +1,25 @@
 (() => {
   const root = document.documentElement;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Phones and tablets: no blur filters in animations (a blur redrawn every frame is what made weak phones stutter)
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const BLUR = px => (fine ? `blur(${px}px)` : 'none');
   if (!reduce) root.classList.add('js-motion');
 
-  /* ---------- Smooth scroll (Lenis, optional) ---------- */
-  let lenis = null;
+  /* ---------- Smooth scroll (Lenis, desktop mouse wheel only) ----------
+     Loaded after the page is ready, so a slow CDN never holds the site back; touch devices keep native scrolling. */
+  let lenis = null, lenisTried = false;
+  const LENIS_SRC = 'https://unpkg.com/lenis@1.1.13/dist/lenis.min.js';
   const startLenis = () => {
-    if (reduce || !window.Lenis || lenis) return;
+    if (reduce || !fine || lenis) return;
+    if (!window.Lenis) {
+      if (lenisTried) return; // one attempt only: if the CDN is down, native scrolling stays
+      lenisTried = true;
+      const sc = document.createElement('script');
+      sc.src = LENIS_SRC; sc.async = true; sc.onload = startLenis;
+      document.head.append(sc);
+      return;
+    }
     lenis = new window.Lenis({ duration: 1.15, easing: t => 1 - Math.pow(1 - t, 4), smoothWheel: true });
     const raf = time => { lenis.raf(time); requestAnimationFrame(raf); };
     requestAnimationFrame(raf);
@@ -20,7 +33,7 @@
       });
     });
   };
-  window.addEventListener('load', startLenis);
+  window.addEventListener('load', () => setTimeout(startLenis, 300), { once: true });
 
   /* ---------- Nav state ---------- */
   const nav = document.getElementById('nav');
@@ -191,8 +204,8 @@
       if (c.nail) return;
       const delay = c.line * 110 + i++ * 22;
       titleAnims.push(c.el.animate([
-        { opacity: 0, transform: 'translate3d(0, .42em, 0) rotate(6deg)', filter: 'blur(12px)' },
-        { opacity: 1, transform: 'translate3d(0, 0, 0) rotate(0)', filter: 'blur(0)' }
+        { opacity: 0, transform: 'translate3d(0, .42em, 0) rotate(6deg)', filter: BLUR(12) },
+        { opacity: 1, transform: 'translate3d(0, 0, 0) rotate(0)', filter: BLUR(0) }
       ], { duration: 1000, delay, easing: ease, fill: 'both' }));
       if (c.line === 0) nailAt = Math.max(nailAt, delay);
     });
@@ -200,10 +213,10 @@
     const hit = nailAt + 520;
     chars.filter(c => c.nail).forEach((c, k) => {
       titleAnims.push(c.el.animate([
-        { opacity: 0, transform: 'translate3d(0, -.15em, 0) scale(2.6)', filter: 'blur(18px)' },
-        { opacity: 1, transform: 'translate3d(0, .04em, 0) scale(.92)', filter: 'blur(0)', offset: .62 },
+        { opacity: 0, transform: 'translate3d(0, -.15em, 0) scale(2.6)', filter: BLUR(18) },
+        { opacity: 1, transform: 'translate3d(0, .04em, 0) scale(.92)', filter: BLUR(0), offset: .62 },
         { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1.03)', offset: .82 },
-        { opacity: 1, transform: 'none', filter: 'blur(0)' }
+        { opacity: 1, transform: 'none', filter: BLUR(0) }
       ], { duration: 640, delay: hit + k * 18, easing: 'cubic-bezier(.7, 0, .2, 1)', fill: 'both' }));
     });
     titleAnims.push(title.animate([
@@ -246,7 +259,11 @@
     playTitle();
     if (!reduce) setTimeout(() => play(false), 1700); else ball.style.left = '100%';
   });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(intro); else intro();
+  // Wait for the font at most 800 ms: on a slow network the headline must not stay invisible
+  let introDone = false;
+  const introOnce = () => { if (!introDone) { introDone = true; intro(); } };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(introOnce);
+  setTimeout(introOnce, document.fonts ? 800 : 0);
 
   /* ---------- Timecode + playhead (25 fps, since page opened) ---------- */
   const tc = document.getElementById('timecode');
@@ -312,7 +329,9 @@
       t.style.setProperty('--p', p.toFixed(4));
     });
   };
-  if (!reduce) { addEventListener('scroll', scrub, { passive: true }); scrub(); }
+  let scrubbing = false;
+  const scrubSoon = () => { if (!scrubbing) { scrubbing = true; requestAnimationFrame(() => { scrubbing = false; scrub(); }); } };
+  if (!reduce) { addEventListener('scroll', scrubSoon, { passive: true }); scrub(); }
 
   /* ---------- Work wall: tiles play in view, click opens the HD cut ---------- */
   const wall = document.querySelector('.wall');
@@ -323,13 +342,45 @@
     // Start playback only after the blur-in reveal has finished: a video playing under a running filter flickers on iOS
     let settled = reduce || !wall.classList.contains('reveal');
     const visible = new Set();
+    const ready = new Set();
     const sync = () => tiles.forEach(t => {
       const v = t.querySelector('video');
-      if (settled && !reduce && visible.has(t) && !lb.open && !document.hidden) { v.preload = 'auto'; v.play().catch(() => {}); }
+      if (settled && !reduce && visible.has(t) && ready.has(t) && !lb.open && !document.hidden) v.play().catch(() => {});
       else v.pause();
     });
+
+    /* Loading queue: on a slow connection ten videos fetched at once all stutter together.
+       Each clip is downloaded whole, one or two at a time (visible tiles first), and only then starts playing;
+       a clip held in memory loops without touching the network again, so it never freezes.
+       While the HD lightbox is open, the queue waits so the HD video gets the whole connection. */
+    const conn = navigator.connection;
+    const MAXQ = conn && (conn.saveData || /2g/.test(conn.effectiveType || '')) ? 1 : 2;
+    const queue = [...tiles];
+    let active = 0, wanted = false;
+    const setSrc = (t, url, file) => {
+      const v = t.querySelector('video');
+      v.addEventListener('loadeddata', () => { ready.add(t); sync(); }, { once: true });
+      v.addEventListener('error', () => { if (v.src.startsWith('blob:')) { v.src = file; v.load(); } }, { once: true });
+      v.preload = 'auto';
+      v.src = url;
+    };
+    const pump = () => {
+      while (wanted && !lb.open && active < MAXQ && queue.length) {
+        const i = queue.findIndex(t => visible.has(t));
+        const t = queue.splice(i < 0 ? 0 : i, 1)[0];
+        const file = t.dataset.src;
+        active++;
+        fetch(file)
+          .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+          .then(b => setSrc(t, URL.createObjectURL(new Blob([b], { type: 'video/mp4' })), file))
+          .catch(() => setSrc(t, file, file))
+          .finally(() => { active--; pump(); });
+      }
+    };
     tiles.forEach(t => {
       const v = t.querySelector('video');
+      t.dataset.src = v.getAttribute('src');
+      v.removeAttribute('src');
       t.style.backgroundImage = `url("${v.getAttribute('poster')}")`;
       v.addEventListener('playing', () => {
         const shown = () => t.classList.add('is-playing');
@@ -339,6 +390,11 @@
     });
     const tio = new IntersectionObserver(es => { es.forEach(e => e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)); sync(); }, { threshold: matchMedia('(max-width: 860px)').matches ? 0.9 : 0.2 });
     tiles.forEach(t => tio.observe(t));
+    // Start downloading a little before the wall scrolls into view
+    if (!reduce) {
+      const near = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { near.disconnect(); wanted = true; pump(); } }, { rootMargin: '900px 0px' });
+      near.observe(wall);
+    }
     document.addEventListener('visibilitychange', sync);
     new MutationObserver(() => { if (wall.classList.contains('is-in')) setTimeout(() => { settled = true; sync(); }, 600); })
       .observe(wall, { attributes: true, attributeFilter: ['class'] });
@@ -353,7 +409,7 @@
       sync();
       lv.play().catch(() => { lv.muted = true; lv.play().catch(() => {}); });
     };
-    lb.addEventListener('close', () => { lv.pause(); lv.removeAttribute('src'); lv.load(); document.documentElement.style.overflow = ''; lenis && lenis.start(); sync(); });
+    lb.addEventListener('close', () => { lv.pause(); lv.removeAttribute('src'); lv.load(); document.documentElement.style.overflow = ''; lenis && lenis.start(); sync(); pump(); });
     lb.addEventListener('click', e => { if (e.target === lb) lb.close(); });
     lb.querySelector('.lightbox__close').addEventListener('click', () => lb.close());
   }
