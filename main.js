@@ -355,7 +355,11 @@
        While the HD lightbox is open, the queue waits so the HD video gets the whole connection. */
     const conn = navigator.connection;
     const MAXQ = conn && (conn.saveData || /2g/.test(conn.effectiveType || '')) ? 1 : 2;
-    const queue = [...tiles];
+    // iPhone, iPad and Safari (every iOS browser, Telegram's too): clips keep the plain file link, exactly as before —
+    // an in-memory clip there would not start on its own, only after a tap
+    const UA = navigator.userAgent;
+    const APPLE = (/AppleWebKit/.test(UA) && !/Chrome|Chromium|Android|Edg|OPR|SamsungBrowser/.test(UA)) || /CriOS|FxiOS|EdgiOS|OPiOS/.test(UA);
+    const queue = APPLE ? [] : [...tiles];
     let active = 0, wanted = false;
     // Connection speed, measured from the clips we download ourselves (kbit/s)
     const net = { bytes: 0, ms: 0, since: 0, bad: 0 };
@@ -396,7 +400,8 @@
     tiles.forEach(t => {
       const v = t.querySelector('video');
       t.dataset.src = v.getAttribute('src');
-      v.removeAttribute('src');
+      if (APPLE) { v.preload = 'auto'; ready.add(t); }
+      else v.removeAttribute('src');
       t.style.backgroundImage = `url("${v.getAttribute('poster')}")`;
       v.addEventListener('playing', () => {
         const shown = () => t.classList.add('is-playing');
