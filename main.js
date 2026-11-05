@@ -367,12 +367,18 @@
       const big = fine && innerWidth * (devicePixelRatio || 1) >= 1800 && kbps() >= 8000 && !net.bad;
       return big || !t.dataset.sd ? t.dataset.full : t.dataset.sd;
     };
+    // The clip is fully downloaded, so it may start right away. (iPhone / Telegram browser never loads a video
+    // before play() is called, so waiting for "loadeddata" left every tile frozen on its poster.)
     const setSrc = (t, url, file) => {
       const v = t.querySelector('video');
-      v.addEventListener('loadeddata', () => { ready.add(t); sync(); }, { once: true });
-      v.addEventListener('error', () => { if (v.src.startsWith('blob:')) { v.src = file; v.load(); } }, { once: true });
+      const fallback = () => { if (v.src.startsWith('blob:')) { v.src = file; v.load(); sync(); } };
+      v.addEventListener('error', fallback, { once: true });
+      // a browser that silently refuses in-memory video gets the plain file link
+      v.addEventListener('play', () => setTimeout(() => { if (v.readyState < 2 && !v.paused) fallback(); }, 4000), { once: true });
       v.preload = 'auto';
       v.src = url;
+      ready.add(t);
+      sync();
     };
     const pump = () => {
       while (wanted && !lb.open && active < MAXQ && queue.length) {
