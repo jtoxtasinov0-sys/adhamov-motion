@@ -357,6 +357,16 @@
     const MAXQ = conn && (conn.saveData || /2g/.test(conn.effectiveType || '')) ? 1 : 2;
     const queue = [...tiles];
     let active = 0, wanted = false;
+    // Connection speed, measured from the clips we download ourselves (kbit/s)
+    const net = { bytes: 0, ms: 0, since: 0, bad: 0 };
+    const kbps = () => (net.bytes && net.ms > 400 ? net.bytes * 8 / net.ms : (conn && conn.downlink ? conn.downlink * 1000 : 3000));
+    // Lightbox: the bitrate-capped 720p cut (data-sd) by default; the original 1080p only on a big screen with a fast connection.
+    // After a stall the lighter cut is used for the rest of the visit. A new clip's 720p cut is made with:
+    // ffmpeg -i w/NN-hd.mp4 -vf scale=-2:720 -c:v libx264 -preset slow -crf 23 -maxrate 1500k -bufsize 3000k -g 60 -c:a aac -b:a 96k -movflags +faststart w/NN-720.mp4
+    const fullSrc = t => {
+      const big = fine && innerWidth * (devicePixelRatio || 1) >= 1800 && kbps() >= 8000 && !net.bad;
+      return big || !t.dataset.sd ? t.dataset.full : t.dataset.sd;
+    };
     const setSrc = (t, url, file) => {
       const v = t.querySelector('video');
       v.addEventListener('loadeddata', () => { ready.add(t); sync(); }, { once: true });
@@ -369,12 +379,12 @@
         const i = queue.findIndex(t => visible.has(t));
         const t = queue.splice(i < 0 ? 0 : i, 1)[0];
         const file = t.dataset.src;
-        active++;
+        if (!active++) net.since = performance.now();
         fetch(file)
           .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
-          .then(b => setSrc(t, URL.createObjectURL(new Blob([b], { type: 'video/mp4' })), file))
+          .then(b => { net.bytes += b.size; setSrc(t, URL.createObjectURL(new Blob([b], { type: 'video/mp4' })), file); })
           .catch(() => setSrc(t, file, file))
-          .finally(() => { active--; pump(); });
+          .finally(() => { const now = performance.now(); net.ms += now - net.since; net.since = now; active--; pump(); });
       }
     };
     tiles.forEach(t => {
@@ -399,8 +409,10 @@
     new MutationObserver(() => { if (wall.classList.contains('is-in')) setTimeout(() => { settled = true; sync(); }, 600); })
       .observe(wall, { attributes: true, attributeFilter: ['class'] });
 
+    let current = null, stallT = 0;
     const open = t => {
-      lv.src = t.dataset.full;
+      current = t;
+      lv.src = fullSrc(t);
       lv.poster = t.querySelector('video').getAttribute('poster');
       lv.muted = false;
       lb.showModal();
@@ -409,7 +421,21 @@
       sync();
       lv.play().catch(() => { lv.muted = true; lv.play().catch(() => {}); });
     };
-    lb.addEventListener('close', () => { lv.pause(); lv.removeAttribute('src'); lv.load(); document.documentElement.style.overflow = ''; lenis && lenis.start(); sync(); pump(); });
+    // The 1080p cut stalls for more than a second: continue the 720p cut from the same moment
+    lv.addEventListener('waiting', () => {
+      clearTimeout(stallT);
+      stallT = setTimeout(() => {
+        const t = current;
+        if (!lb.open || !t || !t.dataset.sd || lv.readyState >= 3 || lv.paused) return;
+        net.bad++;
+        if (lv.getAttribute('src') !== t.dataset.full) return;
+        const at = lv.currentTime;
+        lv.src = t.dataset.sd;
+        lv.addEventListener('loadedmetadata', () => { lv.currentTime = at; lv.play().catch(() => {}); }, { once: true });
+      }, 1000);
+    });
+    lv.addEventListener('playing', () => clearTimeout(stallT));
+    lb.addEventListener('close', () => { clearTimeout(stallT); current = null; lv.pause(); lv.removeAttribute('src'); lv.load(); document.documentElement.style.overflow = ''; lenis && lenis.start(); sync(); pump(); });
     lb.addEventListener('click', e => { if (e.target === lb) lb.close(); });
     lb.querySelector('.lightbox__close').addEventListener('click', () => lb.close());
   }
